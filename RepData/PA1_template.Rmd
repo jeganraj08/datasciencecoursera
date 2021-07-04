@@ -1,0 +1,183 @@
+---
+title: "Reproducible Documents - Assignment"
+author: "Jeganraj Jeyaprakasam"
+date: "4/08/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+```
+
+## Assignment Brief
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+The main artifact of the the entire assignment is the summary report in a single R markdown document that can be processed by knitr and be transformed into an HTML file. The summary report answers various questions that details the patterns found in the data as well the process to process that data and arrive at the report.  
+
+## Loading and Preprocessing Data
+
+This section shows the steps required to read the fitness data from the CSV file. The report assumes that the required file is already downloaded into the working directory of R/R Studio.
+
+```{r readingData }
+unzip("coursera/repdata%2Fdata%2Factivity.zip")
+activityData <- tbl_df(read.csv("activity.csv", header = TRUE, stringsAsFactors = FALSE))
+```
+
+### Summary of Raw Data
+
+```{r Raw Data View }
+str(activityData)
+head(activityData)
+summary(activityData)
+```
+
+### Data Preprocessing
+Convert the date column from character to date class so it can be used in the processing correctly. 
+
+```{r Data Preprocessing}
+activityData$date <- ymd(activityData$date)
+str(activityData)
+```
+
+## Data Analysis
+The sections below will provide analysis on various aspects of the data. 
+
+## Analysis on Total Steps per Day 
+
+### Total Steps per Day
+
+``` {r Total Steps}
+totalSteps <- activityData %>%
+        filter(!is.na(steps)) %>%
+        group_by(date) %>%
+        summarize(dailySteps = sum(steps)) %>%
+        print()
+```
+### Mean and Median of Total Steps per Day
+
+``` {r Mean Median Steps}
+meanSteps <- mean(totalSteps$dailySteps)
+meanSteps
+medianSteps <- median(totalSteps$dailySteps)
+medianSteps
+```
+
+### Histogram of Total Steps per Day
+
+``` {r Hitsogram}
+binWidth = medianSteps / 10 
+histogram <- ggplot(totalSteps, aes(dailySteps)) + geom_histogram(fill = "skyblue", binwidth = binWidth) + labs(title = " Histogram of Total Steps per Day")
+print(histogram)
+```
+
+## Analysis on Average Steps per Interval
+
+### Average Steps per Interval
+
+``` {r Average Steps Interval}
+averageStepsInterval <- activityData %>%
+        filter(!is.na(steps)) %>%
+        group_by(interval) %>%
+        summarize(avgSteps = mean(steps))
+head(averageStepsInterval)
+summary(averageStepsInterval)
+```
+
+### Line Plot of Average Steps per 5 minute Interval
+
+``` {r Line Plot of Interval vs Steps}
+
+lineplot <- ggplot(averageStepsInterval, aes(interval, avgSteps)) + geom_line(color = "violet")  + labs(title = " Line Plot of Average Steps per 5-Minute Interval")
+print(lineplot)
+```
+
+### Maximum of Average Steps per 5 minute Interval
+
+``` {r Maximum Steps}
+maxAverageSteps <- max(averageStepsInterval$avgSteps)
+print(maxAverageSteps)
+```
+
+## Imputing Missing Values
+
+### Number of Missing Values
+``` {r Missing Values}
+missingValues <- sum(is.na(activityData$steps))
+print(missingValues)
+```
+
+### Impute Missing Values with average steps
+
+Impute missing values of steps with the average steps for that corresponding 5 minute interval. 
+
+``` {r Impute Missing Values}
+activityData$steps <- ifelse(is.na(activityData$steps),tapply(activityData$steps, activityData$interval, mean, na.rm = TRUE), activityData$steps) 
+summary(activityData)
+```
+
+The summary shows that there are no missing values for steps in the dataframe now. 
+
+## Total Steps per day Analysis after imputing the missing values
+
+### Total Steps per Day (Imputed)
+
+``` {r Total Steps (Imputed)}
+totalSteps <- activityData %>%
+        filter(!is.na(steps)) %>%
+        group_by(date) %>%
+        summarize(dailySteps = sum(steps)) %>%
+        print()
+```
+### Mean and Median of Total Steps per Day (Imputed)
+
+``` {r Mean Median Steps (Imputed)}
+meanSteps <- mean(totalSteps$dailySteps)
+meanSteps
+medianSteps <- median(totalSteps$dailySteps)
+medianSteps
+```
+
+### Histogram of Total Steps per Day (Imputed)
+
+``` {r Hitsogram (Imputed)}
+binWidth = medianSteps / 10 
+histogram <- ggplot(totalSteps, aes(dailySteps)) + geom_histogram(fill = "skyblue", binwidth = binWidth) + labs(title = " Histogram of Total Steps per Day (Imputed)")
+print(histogram)
+```
+
+### Result
+
+- The mean and median are the same once the missing values are imputed.
+- The median remains the same as before. 
+- The frequency of steps per day has increased across the x-axis as missing values have been replaced
+
+## Activity Pattern - Week Day vs Weekend
+
+### Add a new column
+
+```{r New Column}
+activityData$WeekType <- ifelse(weekdays(activityData$date) %in% c("Saturday", "Sunday"),"Weekend", "Weekday")
+head(activityData)
+table(activityData$WeekType)
+```
+
+### Line Plot of Week Day vs Weekend 
+
+``` {r Line Plot Week Day vs Weekend}
+avgIntervalWeek <- activityData %>%
+        group_by(interval, WeekType) %>%
+        summarize(avgSteps = mean(steps))
+
+
+linePlot <- ggplot(avgIntervalWeek, aes(interval, avgSteps, color = WeekType)) + geom_line() + facet_wrap(~WeekType, ncol = 1, nrow = 2)
+print(linePlot)
+```
+
+### Result
+
+- The weekend is more evenly distributed than the weekday average steps.
+- The peak number of average steps happens early over the weekdays than weekend. 
